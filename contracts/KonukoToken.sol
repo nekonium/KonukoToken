@@ -2,7 +2,7 @@ pragma solidity >=0.7.3 <0.8.0;
 // SPDX-License-Identifier: MIT
 /**
  * KONUKO-token
- * このコントラクトは、クロスチェーンハードフォークを目的とするトークンコントラクトです。
+ * このコントラクトは、Nekoniumのクロスチェーンハードフォークを目的とするトークンコントラクトです。
  * ERC223トークンと互換性があります。
  * 別に用意した残高証明トランザクションをチェーンへ書き込み、同額の残高をそのアカウントへ生成します。
  * 関数を実行したアカウントは、残高証明の値とは別に、固定の報酬として既定のトークンを取得できます。
@@ -156,6 +156,77 @@ library BytesLib{
         }
 
         return tempBytes;
+    }
+    function concat(bytes memory _preBytes,bytes memory _postBytes) internal pure returns (bytes memory)
+    {
+        bytes memory tempBytes;
+
+        assembly {
+            // Get a location of some free memory and store it in tempBytes as
+            // Solidity does for memory variables.
+            tempBytes := mload(0x40)
+
+            // Store the length of the first bytes array at the beginning of
+            // the memory for tempBytes.
+            let length := mload(_preBytes)
+            mstore(tempBytes, length)
+
+            // Maintain a memory counter for the current write location in the
+            // temp bytes array by adding the 32 bytes for the array length to
+            // the starting location.
+            let mc := add(tempBytes, 0x20)
+            // Stop copying when the memory counter reaches the length of the
+            // first bytes array.
+            let end := add(mc, length)
+
+            for {
+                // Initialize a copy counter to the start of the _preBytes data,
+                // 32 bytes into its memory.
+                let cc := add(_preBytes, 0x20)
+            } lt(mc, end) {
+                // Increase both counters by 32 bytes each iteration.
+                mc := add(mc, 0x20)
+                cc := add(cc, 0x20)
+            } {
+                // Write the _preBytes data into the tempBytes memory 32 bytes
+                // at a time.
+                mstore(mc, mload(cc))
+            }
+
+            // Add the length of _postBytes to the current length of tempBytes
+            // and store it as the new length in the first 32 bytes of the
+            // tempBytes memory.
+            length := mload(_postBytes)
+            mstore(tempBytes, add(length, mload(tempBytes)))
+
+            // Move the memory counter back from a multiple of 0x20 to the
+            // actual end of the _preBytes data.
+            mc := end
+            // Stop copying when the memory counter reaches the new combined
+            // length of the arrays.
+            end := add(mc, length)
+
+            for {
+                let cc := add(_postBytes, 0x20)
+            } lt(mc, end) {
+                mc := add(mc, 0x20)
+                cc := add(cc, 0x20)
+            } {
+                mstore(mc, mload(cc))
+            }
+
+            // Update the free-memory pointer by padding our last write location
+            // to 32 bytes: add 31 bytes to the end of tempBytes to move to the
+            // next 32 byte block, then round down to the nearest multiple of
+            // 32. If the sum of the length of the two arrays is zero then add
+            // one before rounding down to leave a blank 32 bytes (the length block with 0).
+            mstore(0x40, and(
+              add(add(end, iszero(add(length, mload(_preBytes)))), 31),
+              not(31) // Round down to the nearest 32 bytes.
+            ))
+        }
+
+        return tempBytes;
     }    
     function toAddress(bytes memory _bytes, uint256 _start) internal pure returns (address)
     {
@@ -231,15 +302,43 @@ library ECDSA
     * @dev prefix a bytes32 value with "\x19Ethereum Signed Message:"
     * and hash the result
     */
-    function toEthSignedMessageHash(bytes32 hash)
-    internal
-    pure
-    returns (bytes32)
+    function toEthSignedMessageHash(bytes32 hash) internal pure returns (bytes32)
     {
-        return keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)
+        return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)
         );
     }
+    function uintToStr(uint _i) internal pure returns (bytes memory _uintAsString) {
+        uint number = _i;
+        if (number == 0) {
+            return "0";
+        }
+        uint j = number;
+        uint len;
+        while (j != 0) {
+            len++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(len);
+        uint k = len - 1;
+        while (number != 0) {
+            bstr[k--] = byte(uint8(48 + number % 10));
+            number /= 10;
+        }
+        return bstr;
+    }
+
+    function toEthSignedMessageHash(bytes memory data) internal pure returns (bytes32)
+    {
+        bytes memory a=BytesLib.concat(
+            "\x19Ethereum Signed Message:\n",
+            BytesLib.concat(uintToStr(data.length),data)
+        );
+        // bytes memory a=BytesLib.concat(
+        //     "\x19Ethereum Signed Message:\n",uintToStr(data.length)
+        // );
+        // bytes memory b=BytesLib.concat(a,data);
+        return keccak256(a);
+    }    
 }
 
 
@@ -257,17 +356,38 @@ abstract contract ContractReceiver
 contract KonukoToken
 {
     event Transfer(address indexed _from, address indexed _to, uint256 _value, bytes _data);
+    event MakeSnapshot(address indexed _caller,uint128 _caller_reword,address indexed _account,uint128 _snapshot);
     
-    mapping(address => uint128) private snapshot;//スナップショットの値
+    mapping(address => uint128) private snapshots;//スナップショットの値
     mapping(address => uint256) private balances;//トークンの残高
     
     
+    uint256 public totalSupply;
+    ///////
+    //<TOKEN PARAMETOR>
+    ///////
     string public name    = "NekoniumForkToken.R3";
     string public symbol  = "KONUKO";
     uint8 public decimals = 18;
-    uint256 public totalSupply;
-    
-
+    address[2] public PROOF_ADDRS=[
+        0x4B647402e73185AE03b5591B43F5236eCcfcff23,
+        0xE9B2857Fd2500157122924EFA5045A118D797A77
+    ];
+    bytes public constant SIGN_MESSAGE = "TEST\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+    //bytes public constant SIGN_MESSAGE = "KonukoToken/0001";   //MUST BE 16 bytes!
+    uint32 public constant FORK_HEIGHT=10000;                  //HF HEIGHT!;
+    uint128 public constant CALLER_PROFIT=299*100000000000000000; //CALLER REWORD!
+    address[] public BURN_ADDRS=[
+        0xBbFdCBbD22960B6fcf4a0a101b816614aa551c4b,
+        0xBc4517bc2ddE774781E3D7B49677DE3449D4D581,
+        0x62A87d9716b5826063d98294688ec76F774034d6,
+        0x817570E7E0838ca0c6c136bF9701962FF7a6e562,
+        0xbd2746c132393fD822D971EecAF7f4cd770A5472,
+        0x0000000000000000000000000000000000000299
+    ];
+    ///////
+    //</TOKEN PARAMETOR>
+    ///////
 
     constructor() 
     {
@@ -339,33 +459,27 @@ contract KonukoToken
     {
         return balances[_owner];
     }
-
+    function snapshotOf(address _owner) public view  returns (uint snapshot)
+    {
+        return snapshots[_owner];
+    }
     
-    address[2] public PROOF_ADDRS=[
-        0xBbFdCBbD22960B6fcf4a0a101b816614aa551c4b,
-        0xBbFdCBbD22960B6fcf4a0a101b816614aa551c4b
-    ];
-    bytes public constant SIGN_MESSAGE = "NekoniumFork/001"; //MUST BE 16 bytes!
-    uint32 public constant FORK_HEIGHT=0;
-    uint public constant CALLER_PROFIT=299*100000000000000000;
-    address[] public BURN_ADDRS=[
-        0xBbFdCBbD22960B6fcf4a0a101b816614aa551c4b,
-        0xBc4517bc2ddE774781E3D7B49677DE3449D4D581,
-        0x62A87d9716b5826063d98294688ec76F774034d6,
-        0x817570E7E0838ca0c6c136bF9701962FF7a6e562,
-        0xbd2746c132393fD822D971EecAF7f4cd770A5472        
-    ];        
+       
     /**
      * スナップショットが書き込み済みかを返す.
      * snapshotmapが0以外の場合に値が書き込まれていると判定します。
      */
     function hasSnapshot(address _target) public view returns (bool _hasSnapshot)
     {
-        if(snapshot[_target]>0){
+        if(snapshots[_target]>0){
             return true;
         }
         return false;
     }
+    // event eventDebuggerBytes(string dm, bytes test);
+    // event eventDebuggerBytes32(string dm, bytes32 test);
+    // event eventDebuggerAddr(string dm, address test);
+
 
     /**
      * スナップショットを書き込みます。
@@ -391,40 +505,52 @@ contract KonukoToken
      */
     function makeSnapshot(bytes calldata _tx) public returns (int success)
     {
+        require(_tx.length==52+PROOF_ADDRS.length*65,"Invalid tx length");
+
         address account=BytesLib.toAddress(_tx,0);//20
-        uint96 amount=BytesLib.toUint96(_tx,20);  //12
-        uint32 height=BytesLib.toUint32(_tx,32);  //4
+        uint32 height=BytesLib.toUint32(_tx,20);  //4
+        uint96 amount=BytesLib.toUint96(_tx,24);  //12
         bytes calldata message=_tx[36:52];        //16
 
-        require(hasSnapshot(account)==false);   //スナップショットがないこと
-        require(amount>0);                      //生成数量が0よりおおきいこと
-        require(height==FORK_HEIGHT);           //HFブロック高が同一であること
-        require(BytesLib.bytesEquals(message,SIGN_MESSAGE));//メッセージが同じであること
+        require(amount>0,"No snapshot amount");                                       //生成数量が0よりおおきいこと
+        require(height==FORK_HEIGHT,"Invalid block height field");                    //HFブロック高が同一であること
+        require(BytesLib.bytesEquals(message,SIGN_MESSAGE),"Invalid MESSAGE field");  //メッセージが同じであること
+        require(hasSnapshot(account)==false,"Snapshot Already exists");                 //スナップショットがないこと
         //require(msg.value==0); //payableじゃないからじゃないからいらない
 
         //焼却リストの確認
         for (uint i=0; i<BURN_ADDRS.length;i++){
             if(BURN_ADDRS[i]==account){
-                return -1; //BURNリスト
+                revert("BURN target");//対象外アドレス
             }
         }
         //署名検証
-        bytes32 signe_hash=keccak256(BytesLib.slice(_tx,0,52));//署名のハッシュを生成
+        bytes32 signe_hash=ECDSA.toEthSignedMessageHash(BytesLib.slice(_tx,0,52));//署名のハッシュを生成bytes
+        // bytes memory data=BytesLib.slice(_tx,0,52);
+        // eventDebuggerBytes("abi","\x19Ethereum Signed Message:\n");
+        // eventDebuggerBytes("abi",ECDSA.uintToStr(data.length));
+        // eventDebuggerBytes("abi",data);
+        // eventDebuggerBytes("signe_hash",BytesLib.slice(_tx,0,52));
+        // eventDebuggerBytes32("signe_hash",signe_hash);
         for(uint i=0;i<PROOF_ADDRS.length;i++){
-            bytes memory signe=BytesLib.slice(_tx,64+64*i,64);     //署名を取得
+            bytes memory signe=BytesLib.slice(_tx,52+65*i,65);     //署名を取得
+            // eventDebuggerBytes("signe",signe);
+            // eventDebuggerAddr("hash",ECDSA.recover(signe_hash,signe));
             if(ECDSA.recover(signe_hash,signe)!=PROOF_ADDRS[i]){
-                return -2;
+                revert("Invalid proof addr/order.");//失敗
             }
         }
-        
+
         //バランスを生成
-        snapshot[account]=amount;    //スナップショットに数量を記録
+        snapshots[account]=amount;    //スナップショットに数量を記録
         balances[account]=amount;    //バランスを生成
         
         //書き込み報酬を加算
         balances[msg.sender]=SafeMath.safeAdd(balanceOf(msg.sender),CALLER_PROFIT);
         //totalSupplyを更新する
         totalSupply=SafeMath.safeAdd(SafeMath.safeAdd(amount,CALLER_PROFIT),totalSupply);
+        //成功
+        emit MakeSnapshot(msg.sender,CALLER_PROFIT,account,amount);
         return 0;
     }
 }
