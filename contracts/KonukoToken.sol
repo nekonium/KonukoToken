@@ -1,4 +1,4 @@
-pragma solidity >=0.7.3 <0.8.0;
+pragma solidity >=0.7.3;
 // SPDX-License-Identifier: MIT
 /**
  * KONUKO-token
@@ -321,7 +321,8 @@ library ECDSA
         bytes memory bstr = new bytes(len);
         uint k = len - 1;
         while (number != 0) {
-            bstr[k--] = byte(uint8(48 + number % 10));
+        	bytes1 b= bytes1(uint8(48 + number % 10));
+            bstr[k--] = b;
             number /= 10;
         }
         return bstr;
