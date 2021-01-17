@@ -188,17 +188,42 @@ SignedBalanceList/0.1;BalanceCertification/0.1	2020-12-24 21:24:15.853105
 
 ### トークンの取得
 
-ABIを生成します。
+gethのコンソールを開いておいてください。
+
+ABIをKonukoToken.jsonから切り出してabi変数にセットします。
 ```
-solc --abi contracts/KonukoToken.sol -o abis
+abi=[{"inputs": [],"stateMutability": "nonpayable","type": "constructor"},{"anonymous": false,"inputs": [{"indexed": true,"internalType": "address","name": "_caller","type": "address"},{"indexed": false,"internalType": "uint128","name": "_caller_reword","type": "uint128"},{"indexed": true,"internalType": "address","name": "_account","type": "address"},{"indexed": false,"internalType": "uint128","name": "_snapshot","type": "uint128"}],"name": "MakeSnapshot","type": "event"},{"anonymous": false,"inputs": [{"indexed": true,"internalType": "address","name": "_from","type": "address"},{"indexed": true,"internalType": "address","name": "_to","type": "address"},{"indexed": false,"internalType": "uint256","name": "_value","type": "uint256"},{"indexed": false,"internalType": "bytes","name": "_data","type": "bytes"}],"name": "Transfer","type": "event"},{"inputs": [{"internalType": "uint256","name": "","type": "uint256"}],"name": "BURN_ADDRS","outputs": [{"internalType": "address","name": "","type": "address"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [],"name": "CALLER_PROFIT","outputs": [{"internalType": "uint128","name": "","type": "uint128"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [],"name": "FORK_HEIGHT","outputs": [{"internalType": "uint32","name": "","type": "uint32"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [{"internalType": "uint256","name": "","type": "uint256"}],"name": "PROOF_ADDRS","outputs": [{"internalType": "address","name": "","type": "address"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [],"name": "SIGN_MESSAGE","outputs": [{"internalType": "bytes","name": "","type": "bytes"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [],"name": "decimals","outputs": [{"internalType": "uint8","name": "","type": "uint8"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [],"name": "name","outputs": [{"internalType": "string","name": "","type": "string"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [],"name": "symbol","outputs": [{"internalType": "string","name": "","type": "string"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [],"name": "totalSupply","outputs": [{"internalType": "uint256","name": "","type": "uint256"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [{"internalType": "address","name": "_to","type": "address"},{"internalType": "uint256","name": "_value","type": "uint256"}],"name": "transfer","outputs": [{"internalType": "bool","name": "success","type": "bool"}],"stateMutability": "nonpayable","type": "function"},{"inputs": [{"internalType": "address","name": "_to","type": "address"},{"internalType": "uint256","name": "_value","type": "uint256"},{"internalType": "bytes","name": "_data","type": "bytes"}],"name": "transfer","outputs": [{"internalType": "bool","name": "success","type": "bool"}],"stateMutability": "nonpayable","type": "function"},{"inputs": [{"internalType": "address","name": "_owner","type": "address"}],"name": "balanceOf","outputs": [{"internalType": "uint256","name": "balance","type": "uint256"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [{"internalType": "address","name": "_owner","type": "address"}],"name": "snapshotOf","outputs": [{"internalType": "uint256","name": "snapshot","type": "uint256"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [{"internalType": "address","name": "_target","type": "address"}],"name": "hasSnapshot","outputs": [{"internalType": "bool","name": "_hasSnapshot","type": "bool"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [{"internalType": "bytes","name": "_tx","type": "bytes"}],"name": "makeSnapshot","outputs": [{"internalType": "int256","name": "success","type": "int256"}],"stateMutability": "nonpayable","type": "function"}]
 ```
-gethでコントラクトにバインドしたabiを生成します。
+
+abiをコントラクトに
 atの引数はコントラクトをデプロイしたアドレスを指定します。
 ```
-abi=[{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"_caller","type":"address"},{"indexed":false,"internalType":"uint128","name":"_caller_reword","type":"uint128"},{"indexed":true,"internalType":"address","name":"_account","type":"address"},{"indexed":false,"internalType":"uint128","name":"_snapshot","type":"uint128"}],"name":"MakeSnapshot","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"_from","type":"address"},{"indexed":true,"internalType":"address","name":"_to","type":"address"},{"indexed":false,"internalType":"uint256","name":"_value","type":"uint256"},{"indexed":false,"internalType":"bytes","name":"_data","type":"bytes"}],"name":"Transfer","type":"event"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"BURN_ADDRS","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"CALLER_PROFIT","outputs":[{"internalType":"uint128","name":"","type":"uint128"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"FORK_HEIGHT","outputs":[{"internalType":"uint32","name":"","type":"uint32"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"PROOF_ADDRS","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"SIGN_MESSAGE","outputs":[{"internalType":"bytes","name":"","type":"bytes"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"balance","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"decimals","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"_target","type":"address"}],"name":"hasSnapshot","outputs":[{"internalType":"bool","name":"_hasSnapshot","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes","name":"_tx","type":"bytes"}],"name":"makeSnapshot","outputs":[{"internalType":"int256","name":"success","type":"int256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"_owner","type":"address"}],"name":"snapshotOf","outputs":[{"internalType":"uint256","name":"snapshot","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"_to","type":"address"},{"internalType":"uint256","name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"success","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_to","type":"address"},{"internalType":"uint256","name":"_value","type":"uint256"},{"internalType":"bytes","name":"_data","type":"bytes"}],"name":"transfer","outputs":[{"internalType":"bool","name":"success","type":"bool"}],"stateMutability":"nonpayable","type":"function"}]
-contract = web3.eth.contract(abi).at("0xCd8DC2e6ED0a638bF722F71eEbA953d6743955bd");
+token = web3.eth.contract(abi).at("0xCd8DC2e6ED0a638bF722F71eEbA953d6743955bd");
 ```
 
+他人のアドレスにトークンを生成して、totalSupplyやバランスを見てみます。
+```
+> token.name()
+"NekoniumForkToken.R3"
+> token.totalSupply()
+0
+> token.makeSnapshot("0x235d224264d23a9b15385ebbfd665f49d5519aec00002710000000bebc2108c4e973c00054455354000000000000000000000000415f0c29702649a76c10f1daaa9008a5f78820e92d99e99d02e62d0881a1449345a467ffc1e2d9482e53cf7378fa824ce274222ea13b990ed18f053f154d77481b55ef4c6e0a9973ca57721ec6e343204076aaa692e06609894ff31cfcf21ef4072115900e81728beaea06fcc9aff1ed8c8535e7ccdca2ca36b2518cb5756697621c",{from:eth.accounts[1]})
+"0x18516107675e22269f2c660baff34557aa7fc476fb5b48cc095afa9b009f8caa"
+> token.totalSupply()
+3.5483375e+21
+> token.balanceOf(eth.accounts[1])
+29900000000000000000
+> token.balanceOf("0x235d224264d23a9b15385ebbfd665f49d5519aec")
+3.5184375e+21
+> token.balanceOf("0x0000000000000000000000000000000000000001")
+0
+> token.transfer("0x0000000000000000000000000000000000000001",1000000000000,{from:eth.accounts[1]})
+"0xcc39579297e14df1a4f3d31b15dc6fe6e50dd325d77765721aa344f027dca90e"
+> token.balanceOf("0x0000000000000000000000000000000000000001")
+1000000000000
+> token.totalSupply()
+3.5483375e+21
+token = web3.eth.contract(abi).at("0xCd8DC2e6ED0a638bF722F71eEbA953d6743955bd");
+```
 
-後で書く
 
