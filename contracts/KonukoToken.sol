@@ -241,7 +241,7 @@ library BytesLib{
     /**
      * https://ethereum.stackexchange.com/questions/884/how-to-convert-an-address-to-bytes-in-solidity
      */
-    function toBytes(address a) public pure returns (bytes memory b){
+    function toBytes(address a) internal pure returns (bytes memory b){
         assembly {
             let m := mload(0x40)
             a := and(a, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
@@ -250,7 +250,7 @@ library BytesLib{
             b := m
        }
     }
-    function bytesEquals(bytes calldata a,bytes calldata b) public pure returns(bool)
+    function bytesEquals(bytes calldata a,bytes memory b) internal pure returns(bool)
     {
         return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
     }
