@@ -1,4 +1,4 @@
-## KonukoToken
+# KonukoToken
 
 このコントラクトは、Nekoniumのクロスチェーンハードフォークに使うトークンコントラクトです。
 
@@ -7,11 +7,11 @@ Nekoniumチェーンから生成したマルチシグ残高証明トランザク
 
 対象ネットワークはEthereum mainnetを想定していますが、Ethereumと互換性のあるアドレスであれば、応用することが可能です。
 
-### 特徴
+## 特徴
 ※トークンに価値は保障されませんが、ここでは受け取るトークンを報酬として表現します。
 
  - 生成するトークンはERC223トークンと互換性があります。
- - ERC233のbalance値とは別に、アカウントのスナップショット残高を示すsnapshot値があります。
+ - ERC223のbalance値とは別に、アカウントのスナップショット残高を示すsnapshot値があります。
  - スナップショット残高の記録とトークン生成の為に、２つの拡張関数があります。
  - totalSupplyは、残高スナップショットの合計値＋残高スナップショットの数量×書き込み報酬です。
  - マルチシグを用いることで、単独の署名者による不正な残高証明の発行を防止します。
@@ -25,7 +25,7 @@ Nekoniumチェーンから生成したマルチシグ残高証明トランザク
 ## コントラクトを取り巻く登場者
 ※トークンに価値は保障されませんが、ここでは受け取るトークンを報酬として表現します。
 
-コントラクトを取り巻く登場人物を紹介します。
+コントラクトを取り巻く登場者を紹介します。
 
 - トークン生成者（残高生成者）
 - 署名者
@@ -33,20 +33,27 @@ Nekoniumチェーンから生成したマルチシグ残高証明トランザク
 - 残高所有者
 
 トークン生成者は、このコントラクトの可変パラメータを決定し、対象ネットワークにデプロイし、そこに生成する残高証明のリストを作成します。
+
 署名者は、トークン生成者が生成した残高リストの正統性に、そのアカウントで署名を行います。
+
 登録者は、署名者が署名済みの残高証明をコントラクトに送信し、対象ネットワークに残高情報とトークン残高を発生させます。
+
 残高所有者は、Nekoniumネットワークの、あるブロック高について、残高を持つアカウントの所有者です。
 
 ### 報酬とコスト
 
 トークン生成者はコントラクトのパラメータを決定できます。デプロイの為に対象ネットワークに手数料を支払いますが、直接得られる報酬はありません。
+
 署名者の収受する手数料や報酬はありません。
+
 登録者はトランザクション送信の為に対象ネットワークに手数料を支払います。その代わり、登録に成功した場合は固定値のトークン残高を得ます。
+
 残高所有者が登録者と同一な場合は、残高所有者はトランザクション送信の為に対象ネットワークに手数料を支払い、登録に成功した場合は固定値のトークン残高と残高証明にある額の合計を受け取ります。残高所有者が登録者と異なる場合は、他の登録者が登録に成功した場合に、残高証明にあるトークン残高を受け取ります。
 
 ### 残高証明の正当性について
 
 残高は、トークン生成者によって生成します。これを署名者が検証して署名することで、残高証明を正統化します。
+
 署名者が多いほど、後に不正な残高生成をすることが難しくなります。署名するアカウントは、それぞれの信頼性をアカウントの所属するネットワークで担保します。
 署名者は様々な立場で複数人が参加するべきです。これにより、事後の談合による不正な署名が防止されます。アカウントではなく、アカウントの所有者で正統性を担保するならば、一次的に生成したアカウントを署名に使用し、署名後に検証不能な形で破棄する方式も使用できます。
 
@@ -54,8 +61,6 @@ Nekoniumチェーンから生成したマルチシグ残高証明トランザク
 
 残高証明を持つ残高所有者は、自身が登録者になるか、または他社によって自分のトランザクションが送信されることで、トークンを得ます。
 残高証明を持たない登録者は、トランザクションの送信により、対象ネットワークへの手数料と引き換えにトークンを得る機会を得ます。
-
-
 
 
 ## コントラクトの設置方法
@@ -74,13 +79,69 @@ Nekoniumチェーンから生成したマルチシグ残高証明トランザク
 3の書き込みリワードは、コントラクトの実行者が受け取るトークンの数量を指定します。アカウント数×数量が、残高証明とは別に発行されることに注意してください。
 4の識別子はユーザー領域です。お好みの文字列を設定します。16文字に満たない部分は0パディングして下さい。
 
+### テスト
+ganache-cliを起動しておきます。
+```
+$ganache-cli
+```
+truffleでテストします。
+```
+$truffle test --network ganache
+```
+全部パスするならきっと大丈夫。
+
 
 ### トークンのデプロイ
-
 ソースファイルをコンパイルしてデプロイします。
+
+gethでアカウントをアンロックします。
 ```
-solc --evm-version 0.7.3 contract.sol
+>web3.personal.unlockAccount(web3.eth.accounts[0])
 ```
+プライベートネットワークの場合はマイニングを開始しておきます。
+```
+>miner.start(1)
+```
+
+truffle-config.jsのgethの設定を書き換えます。
+fromにweb3.eth.accounts[0]のアカウントを設定してください。
+```
+    geth: {
+      host: "127.0.0.1",     // Localhost (default: none)
+      port: 8545,            // Standard Ethereum port (default: none)
+      network_id: "*",         // Any network (default: none)
+      from :"0x256e5d036d544aaf0ea467cebea60ad00e41d943",
+      gas: 4700000,           // Gas sent with each transaction (default: ~6700000)
+    },
+```
+デプロイします。**アカウントの残高が消費されるのでメインネットにつながってるgethで実行しないでください。**
+```
+$truffle migrate --network geth
+
+Compiling your contracts...
+===========================
+> Everything is up to date, there is nothing to compile.
+:
+:
+   > transaction hash:    0xd65e63a00d42013b57ff083a7cc4820f467501959afd27345f6a5b34f7c892cc
+   > Blocks: 1            Seconds: 36
+   > contract address:    0xCd8DC2e6ED0a638bF722F71eEbA953d6743955bd
+   > block number:        2
+   > block timestamp:     1610868621
+   > account:             0x256e5D036d544AAf0ea467cEbEA60ad00e41D943
+   > balance:             904625697166532776746648320380374280103671755200316906558.262375061821325312
+   > gas used:            2165624 (0x210b78)
+   > gas price:           20 gwei
+   > value sent:          0 ETH
+   > total cost:          0.04331248 ETH
+:
+:
+Summary
+=======
+> Total deployments:   1
+> Final cost:          0.04331248 ETH
+```
+コントラクトがデプロイできれば成功です。
 
 ### マルチシグ残高証明トランザクションの生成
 
@@ -125,9 +186,44 @@ SignedBalanceList/0.1;BalanceCertification/0.1	2020-12-24 21:24:15.853105
 :
 ```
 
-
-
 ### トークンの取得
 
-後で書く
+gethのコンソールを開いておいてください。
+
+ABIをKonukoToken.jsonから切り出してabi変数にセットします。
+```
+abi=[{"inputs": [],"stateMutability": "nonpayable","type": "constructor"},{"anonymous": false,"inputs": [{"indexed": true,"internalType": "address","name": "_caller","type": "address"},{"indexed": false,"internalType": "uint128","name": "_caller_reword","type": "uint128"},{"indexed": true,"internalType": "address","name": "_account","type": "address"},{"indexed": false,"internalType": "uint128","name": "_snapshot","type": "uint128"}],"name": "MakeSnapshot","type": "event"},{"anonymous": false,"inputs": [{"indexed": true,"internalType": "address","name": "_from","type": "address"},{"indexed": true,"internalType": "address","name": "_to","type": "address"},{"indexed": false,"internalType": "uint256","name": "_value","type": "uint256"},{"indexed": false,"internalType": "bytes","name": "_data","type": "bytes"}],"name": "Transfer","type": "event"},{"inputs": [{"internalType": "uint256","name": "","type": "uint256"}],"name": "BURN_ADDRS","outputs": [{"internalType": "address","name": "","type": "address"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [],"name": "CALLER_PROFIT","outputs": [{"internalType": "uint128","name": "","type": "uint128"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [],"name": "FORK_HEIGHT","outputs": [{"internalType": "uint32","name": "","type": "uint32"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [{"internalType": "uint256","name": "","type": "uint256"}],"name": "PROOF_ADDRS","outputs": [{"internalType": "address","name": "","type": "address"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [],"name": "SIGN_MESSAGE","outputs": [{"internalType": "bytes","name": "","type": "bytes"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [],"name": "decimals","outputs": [{"internalType": "uint8","name": "","type": "uint8"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [],"name": "name","outputs": [{"internalType": "string","name": "","type": "string"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [],"name": "symbol","outputs": [{"internalType": "string","name": "","type": "string"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [],"name": "totalSupply","outputs": [{"internalType": "uint256","name": "","type": "uint256"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [{"internalType": "address","name": "_to","type": "address"},{"internalType": "uint256","name": "_value","type": "uint256"}],"name": "transfer","outputs": [{"internalType": "bool","name": "success","type": "bool"}],"stateMutability": "nonpayable","type": "function"},{"inputs": [{"internalType": "address","name": "_to","type": "address"},{"internalType": "uint256","name": "_value","type": "uint256"},{"internalType": "bytes","name": "_data","type": "bytes"}],"name": "transfer","outputs": [{"internalType": "bool","name": "success","type": "bool"}],"stateMutability": "nonpayable","type": "function"},{"inputs": [{"internalType": "address","name": "_owner","type": "address"}],"name": "balanceOf","outputs": [{"internalType": "uint256","name": "balance","type": "uint256"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [{"internalType": "address","name": "_owner","type": "address"}],"name": "snapshotOf","outputs": [{"internalType": "uint256","name": "snapshot","type": "uint256"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [{"internalType": "address","name": "_target","type": "address"}],"name": "hasSnapshot","outputs": [{"internalType": "bool","name": "_hasSnapshot","type": "bool"}],"stateMutability": "view","type": "function","constant": true},{"inputs": [{"internalType": "bytes","name": "_tx","type": "bytes"}],"name": "makeSnapshot","outputs": [{"internalType": "int256","name": "success","type": "int256"}],"stateMutability": "nonpayable","type": "function"}]
+```
+
+abiをコントラクトに
+atの引数はコントラクトをデプロイしたアドレスを指定します。
+```
+token = web3.eth.contract(abi).at("0xCd8DC2e6ED0a638bF722F71eEbA953d6743955bd");
+```
+
+他人のアドレスにトークンを生成して、totalSupplyやバランスを見てみます。
+```
+> token.name()
+"NekoniumForkToken.R3"
+> token.totalSupply()
+0
+> token.makeSnapshot("0x235d224264d23a9b15385ebbfd665f49d5519aec00002710000000bebc2108c4e973c00054455354000000000000000000000000415f0c29702649a76c10f1daaa9008a5f78820e92d99e99d02e62d0881a1449345a467ffc1e2d9482e53cf7378fa824ce274222ea13b990ed18f053f154d77481b55ef4c6e0a9973ca57721ec6e343204076aaa692e06609894ff31cfcf21ef4072115900e81728beaea06fcc9aff1ed8c8535e7ccdca2ca36b2518cb5756697621c",{from:eth.accounts[1]})
+"0x18516107675e22269f2c660baff34557aa7fc476fb5b48cc095afa9b009f8caa"
+> token.totalSupply()
+3.5483375e+21
+> token.balanceOf(eth.accounts[1])
+29900000000000000000
+> token.balanceOf("0x235d224264d23a9b15385ebbfd665f49d5519aec")
+3.5184375e+21
+> token.balanceOf("0x0000000000000000000000000000000000000001")
+0
+> token.transfer("0x0000000000000000000000000000000000000001",1000000000000,{from:eth.accounts[1]})
+"0xcc39579297e14df1a4f3d31b15dc6fe6e50dd325d77765721aa344f027dca90e"
+> token.balanceOf("0x0000000000000000000000000000000000000001")
+1000000000000
+> token.totalSupply()
+3.5483375e+21
+token = web3.eth.contract(abi).at("0xCd8DC2e6ED0a638bF722F71eEbA953d6743955bd");
+```
+
 
